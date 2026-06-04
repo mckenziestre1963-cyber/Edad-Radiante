@@ -105,7 +105,7 @@ export default async function PipelinePage({
           Este pipeline no tiene etapas. Agrégalas en Personalizar.
         </p>
       ) : (
-        <KanbanBoard initialColumns={columns} />
+        <KanbanBoard key={selected?.id ?? "all"} initialColumns={columns} />
       )}
     </div>
   );
