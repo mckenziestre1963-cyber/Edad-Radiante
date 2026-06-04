@@ -15,10 +15,14 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { NotificationToggle } from "@/components/shared/NotificationToggle";
+import { CURRENCIES, setActiveCurrency } from "@/lib/constants";
+import { DollarSign } from "lucide-react";
 import type { CrmConfig } from "@/types";
 
 export default function SettingsPage() {
   const [config, setConfig] = useState<CrmConfig | null>(null);
+  const [currency, setCurrency] = useState("MXN");
+  const [savingCurrency, setSavingCurrency] = useState(false);
   const [stages, setStages] = useState<
     Array<{ id: string; name: string; color: string; order: number }>
   >([]);
@@ -32,7 +36,31 @@ export default function SettingsPage() {
     fetch("/api/pipeline")
       .then((r) => r.json())
       .then(setStages);
+
+    fetch("/api/currency")
+      .then((r) => r.json())
+      .then((d) => setCurrency(d.currency || "MXN"))
+      .catch(() => {});
   }, []);
+
+  const saveCurrency = async (code: string) => {
+    setCurrency(code);
+    setSavingCurrency(true);
+    try {
+      const res = await fetch("/api/currency", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currency: code }),
+      });
+      if (!res.ok) throw new Error();
+      setActiveCurrency(code);
+      toast.success("Moneda actualizada");
+    } catch {
+      toast.error("Error al guardar la moneda");
+    } finally {
+      setSavingCurrency(false);
+    }
+  };
 
   const commands = [
     {
@@ -112,6 +140,37 @@ export default function SettingsPage() {
                 negocio.
               </p>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Moneda */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Moneda
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Elige la moneda en la que se mostrarán todos los valores del CRM.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {Object.entries(CURRENCIES).map(([code, info]) => (
+                <button
+                  key={code}
+                  onClick={() => saveCurrency(code)}
+                  disabled={savingCurrency}
+                  className={`rounded-lg border px-3 py-2 text-sm text-left transition-colors cursor-pointer disabled:opacity-50 ${
+                    currency === code
+                      ? "border-primary bg-primary/10 font-medium"
+                      : "hover:bg-muted"
+                  }`}
+                >
+                  {info.label}
+                </button>
+              ))}
+            </div>
           </CardContent>
         </Card>
 

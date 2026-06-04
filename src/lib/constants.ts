@@ -34,10 +34,35 @@ export const ACTIVITY_TYPE_CONFIG: Record<
   follow_up: { label: "Seguimiento", icon: "Clock" },
 };
 
-export function formatCurrency(cents: number): string {
-  return new Intl.NumberFormat("es-MX", {
+// Moneda activa (se actualiza desde la configuración del CRM)
+let _activeCurrency = "MXN";
+export function setActiveCurrency(code: string) {
+  if (code) _activeCurrency = code;
+}
+export function getActiveCurrency() {
+  return _activeCurrency;
+}
+
+// Monedas soportadas (código → etiqueta y locale para formato)
+export const CURRENCIES: Record<string, { label: string; locale: string }> = {
+  MXN: { label: "Peso mexicano (MXN)", locale: "es-MX" },
+  USD: { label: "Dólar (USD)", locale: "en-US" },
+  EUR: { label: "Euro (EUR)", locale: "es-ES" },
+  COP: { label: "Peso colombiano (COP)", locale: "es-CO" },
+  ARS: { label: "Peso argentino (ARS)", locale: "es-AR" },
+  CLP: { label: "Peso chileno (CLP)", locale: "es-CL" },
+  PEN: { label: "Sol peruano (PEN)", locale: "es-PE" },
+  DOP: { label: "Peso dominicano (DOP)", locale: "es-DO" },
+  GBP: { label: "Libra (GBP)", locale: "en-GB" },
+  BRL: { label: "Real (BRL)", locale: "pt-BR" },
+};
+
+export function formatCurrency(cents: number, currency?: string): string {
+  const code = currency || _activeCurrency;
+  const locale = CURRENCIES[code]?.locale || "es-MX";
+  return new Intl.NumberFormat(locale, {
     style: "currency",
-    currency: "MXN",
+    currency: code,
   }).format(cents / 100);
 }
 

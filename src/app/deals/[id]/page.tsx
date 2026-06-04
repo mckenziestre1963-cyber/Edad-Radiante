@@ -11,6 +11,7 @@ import { formatCurrency, formatDate, formatRelativeDate } from "@/lib/constants"
 import { ACTIVITY_TYPE_CONFIG } from "@/lib/constants";
 import { asc } from "drizzle-orm";
 import { DealManager } from "@/components/deals/DealManager";
+import { DealValueCard } from "@/components/deals/DealValueCard";
 
 export const dynamic = "force-dynamic";
 
@@ -81,17 +82,7 @@ export default async function DealDetailPage({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-              <DollarSign className="h-4 w-4" />
-              Valor
-            </div>
-            <p className="text-xl font-bold text-primary">
-              {formatCurrency(deal.value)}
-            </p>
-          </CardContent>
-        </Card>
+        <DealValueCard dealId={deal.id} value={deal.value} />
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">

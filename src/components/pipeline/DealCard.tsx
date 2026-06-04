@@ -5,6 +5,8 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { formatCurrency } from "@/lib/constants";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useRouter } from "next/navigation";
+import { Maximize2 } from "lucide-react";
 import type { Temperature } from "@/types";
 
 interface DealCardProps {
@@ -33,6 +35,8 @@ export function DealCard({
     isDragging,
   } = useSortable({ id });
 
+  const router = useRouter();
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -45,10 +49,23 @@ export function DealCard({
       style={style}
       {...attributes}
       {...listeners}
-      className="p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
+      className="group p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
     >
       <div className="space-y-2">
-        <p className="text-sm font-medium leading-tight">{title}</p>
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm font-medium leading-tight">{title}</p>
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/deals/${id}`);
+            }}
+            className="shrink-0 p-1 rounded hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+            title="Abrir deal"
+          >
+            <Maximize2 className="h-3.5 w-3.5 text-muted-foreground" />
+          </button>
+        </div>
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold text-primary">
             {formatCurrency(value)}
