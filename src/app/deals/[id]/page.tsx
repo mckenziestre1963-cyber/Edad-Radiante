@@ -44,11 +44,17 @@ export default async function DealDetailPage({
     .orderBy(desc(activities.createdAt))
     .all();
 
-  const allStages = db
+  const everyStage = db
     .select()
     .from(pipelineStages)
     .orderBy(asc(pipelineStages.order))
     .all();
+
+  // Solo las etapas del pipeline al que pertenece este deal
+  const dealStage = everyStage.find((s) => s.id === deal.stageId);
+  const allStages = dealStage?.pipelineId
+    ? everyStage.filter((s) => s.pipelineId === dealStage.pipelineId)
+    : everyStage;
 
   return (
     <div className="space-y-6">
