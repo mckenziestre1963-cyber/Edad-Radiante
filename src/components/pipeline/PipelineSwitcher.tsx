@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-type Pipeline = { id: string; name: string };
+type Pipeline = { id: string; name: string; count: number };
 
 export function PipelineSwitcher({
   pipelines,
@@ -16,20 +16,32 @@ export function PipelineSwitcher({
 
   return (
     <div className="flex flex-wrap gap-2 border-b pb-3">
-      {pipelines.map((p) => (
-        <Link
-          key={p.id}
-          href={`/pipeline?pipeline=${p.id}`}
-          className={cn(
-            "rounded-full px-4 py-1.5 text-sm font-medium transition-colors cursor-pointer",
-            p.id === selectedId
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-muted-foreground hover:bg-muted/70"
-          )}
-        >
-          {p.name}
-        </Link>
-      ))}
+      {pipelines.map((p) => {
+        const active = p.id === selectedId;
+        return (
+          <Link
+            key={p.id}
+            href={`/pipeline?pipeline=${p.id}`}
+            className={cn(
+              "flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors cursor-pointer",
+              active
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/70"
+            )}
+          >
+            {p.name}
+            <span
+              className={cn(
+                "inline-flex items-center justify-center rounded-full px-1.5 min-w-5 h-5 text-xs",
+                active ? "bg-primary-foreground/20" : "bg-background",
+                p.count > 0 && !active ? "text-foreground font-semibold" : ""
+              )}
+            >
+              {p.count}
+            </span>
+          </Link>
+        );
+      })}
     </div>
   );
 }

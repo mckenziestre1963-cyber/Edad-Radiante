@@ -33,6 +33,8 @@ export default async function PipelinePage({
     .all()
     .filter((s) => !selected || s.pipelineId === selected.id);
 
+  const allStages = db.select().from(pipelineStages).all();
+
   const allDeals = db
     .select({
       id: deals.id,
@@ -51,6 +53,14 @@ export default async function PipelinePage({
     .from(deals)
     .leftJoin(contacts, eq(deals.contactId, contacts.id))
     .all();
+
+  // Contar deals por pipeline (vía la etapa a la que pertenecen)
+  const stageToPipeline = new Map(allStages.map((s) => [s.id, s.pipelineId]));
+  const dealCounts: Record<string, number> = {};
+  for (const d of allDeals) {
+    const pid = stageToPipeline.get(d.stageId);
+    if (pid) dealCounts[pid] = (dealCounts[pid] || 0) + 1;
+  }
 
   const columns: PipelineColumn[] = stages.map((stage) => ({
     ...stage,
@@ -82,7 +92,11 @@ export default async function PipelinePage({
       </div>
 
       <PipelineSwitcher
-        pipelines={allPipelines.map((p) => ({ id: p.id, name: p.name }))}
+        pipelines={allPipelines.map((p) => ({
+          id: p.id,
+          name: p.name,
+          count: dealCounts[p.id] || 0,
+        }))}
         selectedId={selected?.id ?? null}
       />
 
