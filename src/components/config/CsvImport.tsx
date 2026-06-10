@@ -4,33 +4,57 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, FileText, Check } from "lucide-react";
+import { Upload, FileSpreadsheet, Check } from "lucide-react";
 import { toast } from "sonner";
 
 // Mapeo de columnas comunes (es/en) → campo estándar
 const FIELD_MAP: Record<string, string> = {
-  name: "name", nombre: "name", "full name": "name", "nombre completo": "name",
-  email: "email", correo: "email", "correo electronico": "email",
-  phone: "phone", telefono: "phone", celular: "phone", whatsapp: "phone", "phone number": "phone",
-  company: "company", empresa: "company", negocio: "company",
-  notes: "notes", notas: "notes", mensaje: "notes", comentarios: "notes",
+  name: "name", nombre: "name", "full name": "name", "nombre completo": "name", "nombre y apellido": "name", cliente: "name", contacto: "name",
+  email: "email", correo: "email", "correo electronico": "email", "e-mail": "email", mail: "email",
+  phone: "phone", telefono: "phone", "teléfono": "phone", celular: "phone", whatsapp: "phone", "phone number": "phone", "numero": "phone", "número": "phone", movil: "phone", "móvil": "phone", tel: "phone",
+  company: "company", empresa: "company", negocio: "company", compañia: "company", "compañía": "company", organizacion: "company",
+  notes: "notes", notas: "notes", mensaje: "notes", comentarios: "notes", nota: "notes", observaciones: "notes",
+  source: "source", fuente: "source", origen: "source",
 };
 
-function parseCSV(text: string): Record<string, string>[] {
-  const lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
-  const splitLine = (line: string) =>
-    line.split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
-  const headers = splitLine(lines[0]).map((h) => h.toLowerCase());
-  return lines.slice(1).map((line) => {
-    const cells = splitLine(line);
+// Normaliza encabezado: minúsculas, sin acentos, sin espacios extra
+function normHeader(h: string): string {
+  return String(h)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim();
+}
+
+// Convierte una matriz [encabezados, ...filas] en objetos con campos estándar
+function rowsToContacts(matrix: unknown[][]): Record<string, string>[] {
+  if (matrix.length < 2) return [];
+  const headers = (matrix[0] as unknown[]).map((h) => normHeader(String(h ?? "")));
+  return matrix.slice(1).map((cells) => {
     const row: Record<string, string> = {};
     headers.forEach((h, i) => {
       const field = FIELD_MAP[h] || h;
-      if (cells[i]) row[field] = cells[i];
+      const val = cells[i];
+      if (val !== undefined && val !== null && String(val).trim() !== "") {
+        row[field] = String(val).trim();
+      }
     });
     return row;
   });
+}
+
+// Lee CSV o Excel (.xlsx/.xls) y devuelve los contactos. Usa xlsx (SheetJS).
+async function parseFile(file: File): Promise<Record<string, string>[]> {
+  const XLSX = await import("xlsx");
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array" });
+  const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+  const matrix = XLSX.utils.sheet_to_json(firstSheet, {
+    header: 1,
+    blankrows: false,
+    defval: "",
+  }) as unknown[][];
+  return rowsToContacts(matrix);
 }
 
 export function CsvImport() {
@@ -40,12 +64,15 @@ export function CsvImport() {
   const [importing, setImporting] = useState(false);
 
   const onFile = async (file: File) => {
-    const text = await file.text();
-    const parsed = parseCSV(text).filter((r) => r.name);
-    setRows(parsed);
-    setFileName(file.name);
-    if (parsed.length === 0) {
-      toast.error("No se encontraron contactos con nombre. Revisa que el CSV tenga una columna 'nombre' o 'name'.");
+    try {
+      const parsed = (await parseFile(file)).filter((r) => r.name);
+      setRows(parsed);
+      setFileName(file.name);
+      if (parsed.length === 0) {
+        toast.error("No se encontraron contactos con nombre. Asegúrate de que la primera fila tenga encabezados como 'nombre', 'email', 'telefono'.");
+      }
+    } catch {
+      toast.error("No se pudo leer el archivo. Usa CSV o Excel (.xlsx).");
     }
   };
 
@@ -76,23 +103,24 @@ export function CsvImport() {
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
           <Upload className="h-4 w-4" />
-          Importar contactos (CSV)
+          Importar contactos (Excel o CSV)
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Sube un archivo CSV. Detecta automáticamente columnas como nombre,
-          email, teléfono, empresa (en español o inglés).
+          Sube un archivo <strong>Excel (.xlsx, .xls)</strong> o <strong>CSV</strong>.
+          Detecta automáticamente columnas como nombre, email, teléfono, empresa
+          (en español o inglés).
         </p>
 
         <label className="flex items-center justify-center gap-2 border-2 border-dashed rounded-lg p-6 cursor-pointer hover:bg-muted/50 transition-colors">
-          <FileText className="h-5 w-5 text-muted-foreground" />
+          <FileSpreadsheet className="h-5 w-5 text-muted-foreground" />
           <span className="text-sm">
-            {fileName || "Haz clic para elegir un archivo CSV"}
+            {fileName || "Haz clic para elegir un archivo Excel o CSV"}
           </span>
           <input
             type="file"
-            accept=".csv,text/csv"
+            accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
             className="hidden"
             onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])}
           />
