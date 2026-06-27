@@ -26,9 +26,6 @@ export async function GET() {
   }
 
   try {
-    // 1. Listar páginas del portafolio
-    // Los tokens de Usuario del Sistema usan /me/accounts o la API de Business.
-    // Intentamos primero /me/accounts; si falla, usamos owned_pages del Business.
     let pages: Array<{ id: string; name: string; access_token: string }> = [];
 
     const pagesRes = await fetch(
@@ -39,10 +36,9 @@ export async function GET() {
       error?: { message: string; code?: number };
     };
 
-    if (!pagesData.error && pagesData.data) {
+    if (!pagesData.error && pagesData.data && pagesData.data.length > 0) {
       pages = pagesData.data;
     } else {
-      // Fallback: buscar páginas via client_pages del System User
       const clientRes = await fetch(
         `${GRAPH}/me/client_pages?fields=name,id,access_token&limit=100&access_token=${token}`
       );
@@ -51,10 +47,9 @@ export async function GET() {
         error?: { message: string };
       };
 
-      if (!clientData.error && clientData.data) {
+      if (!clientData.error && clientData.data && clientData.data.length > 0) {
         pages = clientData.data;
       } else {
-        // Segundo fallback: owned_pages
         const ownedRes = await fetch(
           `${GRAPH}/me/owned_pages?fields=name,id,access_token&limit=100&access_token=${token}`
         );
@@ -63,23 +58,34 @@ export async function GET() {
           error?: { message: string };
         };
 
-        if (ownedData.error) {
-          return NextResponse.json(
-            { error: `Error de Meta: ${ownedData.error.message}` },
-            { status: 502 }
-          );
+        if (!ownedData.error && ownedData.data && ownedData.data.length > 0) {
+          pages = ownedData.data;
+        } else {
+          // Fallback: usar META_PAGE_ID si está configurado
+          const pageId = process.env.META_PAGE_ID;
+          if (pageId) {
+            const pageRes = await fetch(
+              `${GRAPH}/${pageId}?fields=name,id,access_token&access_token=${token}`
+            );
+            const pageData = (await pageRes.json()) as {
+              id?: string;
+              name?: string;
+              access_token?: string;
+              error?: { message: string };
+            };
+            if (!pageData.error && pageData.id) {
+              pages = [{ id: pageData.id, name: pageData.name ?? "Mi página", access_token: pageData.access_token ?? token }];
+            }
+          }
         }
-        pages = ownedData.data ?? [];
       }
     }
 
-    // Para páginas sin access_token, usar el token del sistema directamente
     pages = pages.map((p) => ({
       ...p,
       access_token: p.access_token || token,
     }));
 
-    // 2. Para cada página, traer sus formularios + preguntas (en paralelo)
     const formsPerPage = await Promise.all(
       pages.map(async (page) => {
         try {
@@ -122,7 +128,6 @@ export async function GET() {
 
     const forms = formsPerPage.flat();
 
-    // 3. Leer qué formularios están habilitados en el CRM
     const enabledSetting = db
       .select()
       .from(crmSettings)
@@ -132,7 +137,6 @@ export async function GET() {
       ? JSON.parse(enabledSetting.value)
       : [];
 
-    // Mapeo formulario -> pipeline
     const fpSetting = db
       .select()
       .from(crmSettings)
