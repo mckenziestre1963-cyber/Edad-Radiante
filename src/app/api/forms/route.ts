@@ -15,7 +15,6 @@ type Form = {
   questions: Question[];
 };
 
-// GET: descubre en tiempo real todos los formularios del portafolio
 export async function GET() {
   const token = process.env.META_ACCESS_TOKEN;
   if (!token) {
@@ -28,56 +27,33 @@ export async function GET() {
   try {
     let pages: Array<{ id: string; name: string; access_token: string }> = [];
 
-    const pagesRes = await fetch(
-      `${GRAPH}/me/accounts?fields=name,id,access_token&limit=100&access_token=${token}`
-    );
-    const pagesData = (await pagesRes.json()) as {
-      data?: Array<{ id: string; name: string; access_token: string }>;
-      error?: { message: string; code?: number };
-    };
-
-    if (!pagesData.error && pagesData.data && pagesData.data.length > 0) {
-      pages = pagesData.data;
-    } else {
-      const clientRes = await fetch(
-        `${GRAPH}/me/client_pages?fields=name,id,access_token&limit=100&access_token=${token}`
+    // Si META_PAGE_ID está configurado, ir directo sin buscar páginas
+    const directPageId = process.env.META_PAGE_ID;
+    if (directPageId) {
+      const nameRes = await fetch(
+        `${GRAPH}/${directPageId}?fields=name,id&access_token=${token}`
       );
-      const clientData = (await clientRes.json()) as {
+      const nameData = (await nameRes.json()) as {
+        id?: string;
+        name?: string;
+        error?: { message: string };
+      };
+      if (!nameData.error && nameData.id) {
+        pages = [{ id: nameData.id, name: nameData.name ?? "Edad Radiante", access_token: token }];
+      }
+    }
+
+    // Si no hay META_PAGE_ID, intentar descubrir páginas
+    if (pages.length === 0) {
+      const pagesRes = await fetch(
+        `${GRAPH}/me/accounts?fields=name,id,access_token&limit=100&access_token=${token}`
+      );
+      const pagesData = (await pagesRes.json()) as {
         data?: Array<{ id: string; name: string; access_token: string }>;
         error?: { message: string };
       };
-
-      if (!clientData.error && clientData.data && clientData.data.length > 0) {
-        pages = clientData.data;
-      } else {
-        const ownedRes = await fetch(
-          `${GRAPH}/me/owned_pages?fields=name,id,access_token&limit=100&access_token=${token}`
-        );
-        const ownedData = (await ownedRes.json()) as {
-          data?: Array<{ id: string; name: string; access_token: string }>;
-          error?: { message: string };
-        };
-
-        if (!ownedData.error && ownedData.data && ownedData.data.length > 0) {
-          pages = ownedData.data;
-        } else {
-          // Fallback: usar META_PAGE_ID si está configurado
-          const pageId = process.env.META_PAGE_ID;
-          if (pageId) {
-            const pageRes = await fetch(
-              `${GRAPH}/${pageId}?fields=name,id,access_token&access_token=${token}`
-            );
-            const pageData = (await pageRes.json()) as {
-              id?: string;
-              name?: string;
-              access_token?: string;
-              error?: { message: string };
-            };
-            if (!pageData.error && pageData.id) {
-              pages = [{ id: pageData.id, name: pageData.name ?? "Mi página", access_token: pageData.access_token ?? token }];
-            }
-          }
-        }
+      if (!pagesData.error && pagesData.data && pagesData.data.length > 0) {
+        pages = pagesData.data;
       }
     }
 
@@ -161,7 +137,6 @@ export async function GET() {
   }
 }
 
-// POST: guardar qué formularios usa el CRM y a qué pipeline va cada uno
 export async function POST(request: NextRequest) {
   let body: { enabledIds?: string[]; formPipelines?: Record<string, string> };
   try {
