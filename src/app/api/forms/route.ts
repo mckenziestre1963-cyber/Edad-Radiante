@@ -17,6 +17,9 @@ type Form = {
 
 export async function GET() {
   const token = process.env.META_ACCESS_TOKEN;
+  const pageToken = process.env.META_PAGE_ACCESS_TOKEN || token;
+  const pageId = process.env.META_PAGE_ID;
+
   if (!token) {
     return NextResponse.json(
       { error: "META_ACCESS_TOKEN no configurado en el servidor" },
@@ -27,12 +30,11 @@ export async function GET() {
   try {
     let pages: Array<{ id: string; name: string; access_token: string }> = [];
 
-    const directPageId = process.env.META_PAGE_ID;
-    if (directPageId) {
-      pages = [{ id: directPageId, name: "Edad Radiante", access_token: token }];
+    if (pageId && pageToken) {
+      pages = [{ id: pageId, name: "Edad Radiante", access_token: pageToken }];
     } else {
       const pagesRes = await fetch(
-        `${GRAPH}/me/accounts?fields=name,id,access_token&limit=100&access_token=${token}`
+        `${GRAPH}/me/accounts?fields=name,id,access_token&limit=100&access_token=${pageToken}`
       );
       const pagesData = (await pagesRes.json()) as {
         data?: Array<{ id: string; name: string; access_token: string }>;
@@ -42,11 +44,6 @@ export async function GET() {
         pages = pagesData.data;
       }
     }
-
-    pages = pages.map((p) => ({
-      ...p,
-      access_token: p.access_token || token,
-    }));
 
     const formsPerPage = await Promise.all(
       pages.map(async (page) => {
