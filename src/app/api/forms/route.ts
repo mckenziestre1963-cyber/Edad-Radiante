@@ -27,30 +27,16 @@ export async function GET() {
   try {
     let pages: Array<{ id: string; name: string; access_token: string }> = [];
 
-    // Si META_PAGE_ID está configurado, ir directo sin buscar páginas
     const directPageId = process.env.META_PAGE_ID;
     if (directPageId) {
-      const nameRes = await fetch(
-        `${GRAPH}/${directPageId}?fields=name,id&access_token=${token}`
-      );
-      const nameData = (await nameRes.json()) as {
-        id?: string;
-        name?: string;
-        error?: { message: string };
-      };
-      if (!nameData.error && nameData.id) {
-        pages = [{ id: nameData.id, name: nameData.name ?? "Edad Radiante", access_token: token }];
-      }
-    }
-
-    // Si no hay META_PAGE_ID, intentar descubrir páginas
-    if (pages.length === 0) {
+      pages = [{ id: directPageId, name: "Edad Radiante", access_token: token }];
+    } else {
       const pagesRes = await fetch(
         `${GRAPH}/me/accounts?fields=name,id,access_token&limit=100&access_token=${token}`
       );
       const pagesData = (await pagesRes.json()) as {
         data?: Array<{ id: string; name: string; access_token: string }>;
-        error?: { message: string };
+        error?: { message: string; code?: number };
       };
       if (!pagesData.error && pagesData.data && pagesData.data.length > 0) {
         pages = pagesData.data;
